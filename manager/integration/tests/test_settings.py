@@ -5,6 +5,8 @@ import subprocess
 import yaml
 import json
 
+from kubernetes import client as k8sclient
+
 from common import (  # NOQA
     get_longhorn_api_client, get_self_host_id,
     get_core_api_client, get_apps_api_client,
@@ -120,6 +122,49 @@ def wait_for_longhorn_node_ready():
         wait_for_all_nodes_disks_schedulable(client)
 
     return client, node
+
+
+def restart_instance_managers(client):  # NOQA
+    """
+    Restart all instance manager pods for the current DATA_ENGINE.
+    This is useful for ensuring a clean state before running tests.
+    """
+    core_api = get_core_api_client()
+
+    label_selector = (
+        f"longhorn.io/component=instance-manager,"
+        f"longhorn.io/data-engine={DATA_ENGINE}"
+    )
+
+    # Delete all instance manager pods for the current DATA_ENGINE
+    pods = core_api.list_namespaced_pod(
+        namespace=LONGHORN_NAMESPACE,
+        label_selector=label_selector
+    )
+
+    for pod in pods.items:
+        pod_name = pod.metadata.name
+        print(f"Deleting instance manager pod: {pod_name}")
+        core_api.delete_namespaced_pod(
+            name=pod_name,
+            namespace=LONGHORN_NAMESPACE,
+            grace_period_seconds=0,
+            body=k8sclient.V1DeleteOptions(
+                grace_period_seconds=0,
+                propagation_policy="Background"
+            )
+        )
+
+    # Wait for instance managers to be deleted
+    wait_for_instance_manager_count(client, 0)
+
+    # Wait for instance managers to be recreated
+    nodes = client.list_node()
+    expected_count = len(nodes)
+    actual_count = wait_for_instance_manager_count(client, expected_count)
+    assert actual_count == expected_count, \
+        f"Expected {expected_count} instance managers, got {actual_count}"
+    print(f"Successfully restarted {actual_count} instance manager(s)")
 
 
 @pytest.mark.v2_volume_test  # NOQA
@@ -1105,6 +1150,9 @@ def test_setting_concurrent_volume_backup_restore_limit(set_random_backupstore, 
 
     Then Number of restoring volumes per node not exceed the setting value.
     """
+    # Restart instance managers to ensure clean state
+    restart_instance_managers(client)
+
     setting_concurrent_volume_backup_restore_limit_concurrent_restoring_test(
         client, volume_name
     )
@@ -1124,6 +1172,9 @@ def test_setting_concurrent_volume_backup_restore_limit_should_not_effect_dr_vol
 
     Then Number of restoring volumes can exceed the setting value.
     """
+    # Restart instance managers to ensure clean state
+    restart_instance_managers(client)
+
     setting_concurrent_volume_backup_restore_limit_concurrent_restoring_test(
         client, volume_name, is_DR_volumes=True
     )
