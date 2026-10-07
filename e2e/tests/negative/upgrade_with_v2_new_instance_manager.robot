@@ -60,6 +60,16 @@ Wait for instance manager upgrade relocation node for volume name ${volume_name}
     ${relocation_node}=    wait_for_instance_manager_upgrade_relocation_for_volume_name    ${volume_name}    ${node_name}
     [Return]    ${relocation_node}
 
+Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
+    Upgrade Longhorn to custom version
+    Wait for longhorn ready
+    Run command and wait for output
+    ...    kubectl -n ${LONGHORN_NAMESPACE} patch settings.longhorn.io current-longhorn-version --type=merge -p '{"metadata":{"annotations":{"longhorn.io/update-setting-from-longhorn":"","longhorn.io/v2-instance-manager-live-upgrade-unsupported":null}}}'
+    ...    patched
+    Run command and wait for output
+    ...    kubectl -n ${LONGHORN_NAMESPACE} annotate settings.longhorn.io current-longhorn-version longhorn.io/update-setting-from-longhorn-
+    ...    annotated
+
 *** Test Cases ***
 Test System V2 Upgrade With Instance Manager Upgrade
     # This test takes longer because of the larger number of volumes in the cluster.
@@ -83,8 +93,7 @@ Test System V2 Upgrade With Instance Manager Upgrade
         And Write data to volume vol${i}
     END
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
     And Wait for all v2 instance managers running with default image
     And Wait for all v2 instance manager upgrades completed
@@ -119,8 +128,7 @@ Test System V2 Upgrade With Instance Manager Live Upgrade
     When Start fio write with crc32c verify in deployment 0
     Then Volume of deployment 0 engine CR and enginefrontend CR should be on same node
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
     And Wait for all v2 instance managers running with default image
     And Wait for all v2 instance manager upgrades completed
@@ -146,8 +154,7 @@ Test System V2 Upgrade With Instance Manager Upgrade With Single Interrupt Mode 
     Given Prepare v2 upgrade environment    interrupt_mode=${True}
     And Prepare attached v2 volume 0 with 3 replicas
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
     And Wait for all v2 instance managers running with default image
     And Wait for all v2 instance manager upgrades completed
@@ -172,8 +179,7 @@ Test System V2 Upgrade With Instance Manager Upgrade With Single Encrypted RWO V
     And Wait for volume of persistentvolumeclaim 0 healthy
     And Write 100 MB data to file data.txt in deployment 0
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
     And Wait for all v2 instance managers running with default image
     And Wait for all v2 instance manager upgrades completed
@@ -199,8 +205,7 @@ Test System V2 Upgrade With Instance Manager Upgrade with RWX Volume
     And Wait for volume of persistentvolumeclaim 0 healthy
     And Write 100 MB data to file data.txt in deployment 0
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
     And Wait for all v2 instance managers running with default image
     And Wait for all v2 instance manager upgrades completed
@@ -233,8 +238,7 @@ Test System V2 Upgrade With RWO Volume Expansion
     ${volume_name}=    get_volume_name_from_persistentvolumeclaim    ${claim_name}
     ${source_engine_node}=    get_volume_node    ${volume_name}
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
 
     # Wait for volume's IM upgrade to start (engine relocation begins)
@@ -281,8 +285,7 @@ Test System V2 Upgrade With RWX Volume Expansion
         ${volume_name}=    get_volume_name_from_persistentvolumeclaim    ${claim_name}
         ${source_engine_node}=    get_volume_node    ${volume_name}
 
-        When Upgrade Longhorn to custom version
-        Then Wait for longhorn ready
+        When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
         And Setting allow-instance-manager-automatic-upgrade is set to true
 
         # Wait for RWX volume's IM upgrade to start (engine relocation begins)
@@ -327,8 +330,7 @@ Test System V2 Upgrade With Instance Manager Upgrade DR Volume
     And Create DR volume 1 from backup 0 of volume 0    dataEngine=v2
     And Wait for volume 1 restoration from backup 0 of volume 0 completed
 
-    When Upgrade Longhorn to custom version
-    Then Wait for longhorn ready
+    When Upgrade Longhorn to custom version with v1.12.2 prerelease workaround
     And Setting allow-instance-manager-automatic-upgrade is set to true
     And Wait for all v2 instance managers running with default image
     And Wait for all v2 instance manager upgrades completed
